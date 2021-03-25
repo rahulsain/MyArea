@@ -7,12 +7,8 @@ import androidx.room.PrimaryKey;
 public class Country {
 
     @PrimaryKey
-    public String countryName;
-    public String capital;
-    public String flagURL;
-    public String region;
-    public String subRegion;
-    public long population;
-    public String[] borders;
-    public String[] languages;
+    String countryName;
+    String capital,flagURL,region,subRegion;
+    long population;
+    String[] borders,languages;
 }

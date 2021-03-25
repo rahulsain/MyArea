@@ -4,4 +4,5 @@
     <string name="hint_word">Country...</string>
     <string name="button_save">Save</string>
     <string name="empty_not_saved">Country not saved because it is empty.</string>
+    <string name="country_flag">Country Flag</string>
 </resources>
