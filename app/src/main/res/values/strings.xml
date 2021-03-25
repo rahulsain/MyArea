@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">MyArea</string>
+    <string name="add_country">Add Country</string>
+    <string name="hint_word">Country...</string>
+    <string name="button_save">Save</string>
+    <string name="empty_not_saved">Country not saved because it is empty.</string>
+</resources>
