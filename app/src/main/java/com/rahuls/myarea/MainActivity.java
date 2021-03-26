@@ -1,64 +1,218 @@
 package com.rahuls.myarea;
 
-import android.content.Intent;
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.Log;
+import android.view.View;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
-import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.Volley;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.gson.JsonSyntaxException;
 
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
-    public static final int NEW_WORD_ACTIVITY_REQUEST_CODE = 1;
-    private CountryViewModel mCountryViewModel;
+    private static String FETCHURL = "https://restcountries.eu/rest/v2/region/asia";
+    List<Continent> recipes;
+    private RecyclerView recyclerview;
+    private ArrayList<Continent> arrayList;
+    private CountryListAdapter adapter;
+    private ProgressBar pb;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        RecyclerView recyclerView = findViewById(R.id.recyclerview);
-        final CountryListAdapter adapter = new CountryListAdapter(new CountryListAdapter.WordDiff());
-        recyclerView.setAdapter(adapter);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        pb = findViewById(R.id.pb);
+        pb.setVisibility(View.GONE);
 
-        mCountryViewModel = new ViewModelProvider(this).get(CountryViewModel.class);
+        recyclerview = findViewById(R.id.recyclerview);
+        arrayList = new ArrayList<>();
+        adapter = new CountryListAdapter(this, arrayList);
+        RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(getApplicationContext());
+        recyclerview.setLayoutManager(mLayoutManager);
+        recyclerview.setItemAnimator(new DefaultItemAnimator());
+        recyclerview.setNestedScrollingEnabled(false);
+        recyclerview.setAdapter(adapter);
 
-        mCountryViewModel.getAllCountries().observe(this, countries -> {
-            // Update the cached copy of the words in the adapter.
-            adapter.submitList(countries);
-        });
 
-        FloatingActionButton fab = findViewById(R.id.fab);
-        fab.setOnClickListener( view -> {
-            Intent intent = new Intent(MainActivity.this, NewCountryActivity.class);
-            startActivityForResult(intent, NEW_WORD_ACTIVITY_REQUEST_CODE);
-        });
+        isNetworkConnected();
+
     }
 
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        if (requestCode == NEW_WORD_ACTIVITY_REQUEST_CODE && resultCode == RESULT_OK) {
-            Country country = new Country(data.getStringExtra(NewCountryActivity.EXTRA_REPLY));
-            mCountryViewModel.insert(country);
+    public void isNetworkConnected() {
+        ConnectivityManager cm = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        if (activeNetwork == null) {
+            fetchfromRoom();
         } else {
-            Toast.makeText(
-                    getApplicationContext(),
-                    R.string.empty_not_saved,
-                    Toast.LENGTH_LONG).show();
+            fetchfromServer();
         }
+    }
+
+
+    private void fetchfromRoom() {
+
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+
+                List<Country> recipeList = CountryRepository.getInstance(MainActivity.this).getAppDatabase().countryDao().getAll();
+//                arrayList.clear();
+                for (Country recipe: recipeList) {
+                    Continent repo = new Continent(recipe.getId(),
+                            recipe.getCountryName(),
+                            recipe.getCapital(),
+                            recipe.getFlagURL(),
+                            recipe.getRegion(),
+                            recipe.getSubRegion(),
+                            recipe.getPopulation(),
+                            recipe.getBorders(),
+                            recipe.getLanguages());
+                    arrayList.add(repo);
+                }
+                // refreshing recycler view
+                runOnUiThread(() -> adapter.notifyDataSetChanged());
+            }
+        });
+        thread.start();
+
+
+    }
+
+    private void fetchfromServer() {
+        pb.setVisibility(View.VISIBLE);
+
+        JsonArrayRequest request = new JsonArrayRequest(FETCHURL,
+                new Response.Listener<JSONArray>() {
+                    @Override
+                    public void onResponse(JSONArray response) {
+                        try{
+                        if (response == null) {
+                            pb.setVisibility(View.GONE);
+                            Toast.makeText(getApplicationContext(), "Couldn't fetch the menu! Pleas try again.", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+
+                            for(int i=0;i<response.length();i++){
+                                // Get current json object
+                                JSONObject country = response.getJSONObject(i);
+
+                                Continent continent = new Continent();
+
+                                // Get the current student (json object) data
+                                continent.setCountryName(country.getString("name"));
+                                continent.setCapital(country.getString("capital"));
+                                continent.setFlagURL(country.getString("flag"));
+                                continent.setRegion(country.getString("region"));
+                                continent.setSubRegion(country.getString("subregion"));
+                                continent.setPopulation(country.getString("population"));
+                                continent.setBorders(country.getString("borders"));
+                                continent.setLanguages(country.getString("languages"));
+
+                                // Display the formatted json data in text view
+                                arrayList.add(continent);
+                            }
+
+//                        recipes = new Gson().fromJson(response.toString(), new TypeToken<List<Continent>>() {
+//                        }.getType());
+//
+//                        // adding data to cart list
+//                        arrayList.clear();
+//                        arrayList.addAll(recipes);
+
+
+                        // refreshing recycler view
+                        adapter.notifyDataSetChanged();
+
+                        pb.setVisibility(View.GONE);
+
+                        saveTask();
+
+                    }catch (JsonSyntaxException | JSONException e){
+                            e.printStackTrace();
+                        }
+
+                    }
+                }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                // error in getting json
+                pb.setVisibility(View.GONE);
+                Log.e("TAG", "Error: " + error.getMessage());
+                Toast.makeText(getApplicationContext(), "Error: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        RequestQueue requestQueue = Volley.newRequestQueue(this);
+
+        request.setShouldCache(false);
+
+        requestQueue.add(request);
+    }
+
+
+    private void saveTask() {
+
+
+        class SaveTask extends AsyncTask<Void, Void, Void> {
+
+            @Override
+            protected Void doInBackground(Void... voids) {
+
+                //creating a task
+                if(recipes != null) {
+                    for (int i = 0; i < recipes.size(); i++) {
+                        Country recipe = new Country();
+                        recipe.setCountryName(recipes.get(i).getCountryName());
+                        recipe.setCapital(recipes.get(i).getCapital());
+                        recipe.setFlagURL(recipes.get(i).getFlagURL());
+                        recipe.setRegion(recipes.get(i).getRegion());
+                        recipe.setSubRegion(recipes.get(i).getSubRegion());
+                        recipe.setPopulation(recipes.get(i).getPopulation());
+                        recipe.setBorders(recipes.get(i).getBorders());
+                        recipe.setLanguages(recipes.get(i).getLanguages());
+                        CountryRepository.getInstance(getApplicationContext()).getAppDatabase().countryDao().insert(recipe);
+                    }
+                }
+
+
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(Void avoid) {
+                super.onPostExecute(avoid);
+                Toast.makeText(getApplicationContext(), "Saved", Toast.LENGTH_LONG).show();
+            }
+        }
+
+        SaveTask st = new SaveTask();
+        st.execute();
+    }
+
+    public void DeleteAll(View view) {
+        CountryRepository.getInstance(getApplicationContext()).getAppDatabase().countryDao().deleteAll();
     }
 }

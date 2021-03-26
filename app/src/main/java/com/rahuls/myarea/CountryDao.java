@@ -1,7 +1,7 @@
 package com.rahuls.myarea;
 
-import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
+import androidx.room.Delete;
 import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
@@ -18,6 +18,9 @@ public interface CountryDao {
     @Query("DELETE FROM country_table")
     void deleteAll();
 
-    @Query("SELECT * FROM country_table ORDER BY countryName ASC")
-    LiveData<List<Country>> getAllCountries();
+    @Query("SELECT * FROM country_table")
+    List<Country> getAll();
+
+    @Delete
+    void delete(Country country);
 }
