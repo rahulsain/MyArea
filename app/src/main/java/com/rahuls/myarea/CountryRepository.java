@@ -15,7 +15,8 @@ public class CountryRepository {
 
         //creating the app database with Room database builder
         //alldata is the name of the database
-        appDatabase = Room.databaseBuilder(mCtx, CountryRoomDatabase.class, "alldata").build();
+        appDatabase = Room.databaseBuilder(mCtx, CountryRoomDatabase.class, "alldata")
+                .allowMainThreadQueries().build();
     }
 
     public static synchronized CountryRepository getInstance(Context mCtx) {
@@ -29,7 +30,4 @@ public class CountryRepository {
         return appDatabase;
     }
 
-    public void deleteAllData(){
-
-    }
 }

@@ -2,13 +2,19 @@ package com.rahuls.myarea;
 
 public class Continent {
     int id;
-    String countryName;
-    String capital,flagURL,region,subRegion;
-    String population;
+    String countryName,capital,flagURL,region,subRegion,population;
     String borders,languages;
 
     public Continent(){
-
+        this.id = 0;
+        this.countryName = "";
+        this.capital = "";
+        this.flagURL = "";
+        this.region = "";
+        this.subRegion = "";
+        this.population = "";
+        this.borders = "";
+        this.languages = "";
     }
 
     public Continent(int id,String countryName, String capital , String flagURL, String region , String subRegion

@@ -56,19 +56,19 @@ public class MainActivity extends AppCompatActivity {
         recyclerview.setAdapter(adapter);
 
 
-        isNetworkConnected();
-
-    }
-
-    public void isNetworkConnected() {
-        ConnectivityManager cm = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
-        if (activeNetwork == null) {
-            fetchfromRoom();
-        } else {
+        if (isNetworkAvailable()) {
             fetchfromServer();
+        } else {
+            fetchfromRoom();
         }
+
     }
+        private boolean isNetworkAvailable() {
+            ConnectivityManager connectivityManager
+                    = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
+            return activeNetworkInfo != null && activeNetworkInfo.isConnectedOrConnecting();
+        }
 
 
     private void fetchfromRoom() {
@@ -79,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
 
 
                 List<Country> recipeList = CountryRepository.getInstance(MainActivity.this).getAppDatabase().countryDao().getAll();
-//                arrayList.clear();
+                arrayList.clear();
                 for (Country recipe: recipeList) {
                     Continent repo = new Continent(recipe.getId(),
                             recipe.getCountryName(),
@@ -108,13 +108,12 @@ public class MainActivity extends AppCompatActivity {
                 new Response.Listener<JSONArray>() {
                     @Override
                     public void onResponse(JSONArray response) {
-                        try{
                         if (response == null) {
                             pb.setVisibility(View.GONE);
-                            Toast.makeText(getApplicationContext(), "Couldn't fetch the menu! Pleas try again.", Toast.LENGTH_LONG).show();
+                            Toast.makeText(getApplicationContext(), "Couldn't fetch the menu! Please try again.", Toast.LENGTH_LONG).show();
                             return;
                         }
-
+                        try{
                             for(int i=0;i<response.length();i++){
                                 // Get current json object
                                 JSONObject country = response.getJSONObject(i);
@@ -134,6 +133,9 @@ public class MainActivity extends AppCompatActivity {
                                 // Display the formatted json data in text view
                                 arrayList.add(continent);
                             }
+                        }catch (JsonSyntaxException | JSONException e){
+                            e.printStackTrace();
+                        }
 
 //                        recipes = new Gson().fromJson(response.toString(), new TypeToken<List<Continent>>() {
 //                        }.getType());
@@ -149,10 +151,6 @@ public class MainActivity extends AppCompatActivity {
                         pb.setVisibility(View.GONE);
 
                         saveTask();
-
-                    }catch (JsonSyntaxException | JSONException e){
-                            e.printStackTrace();
-                        }
 
                     }
                 }, new Response.ErrorListener() {
@@ -181,8 +179,14 @@ public class MainActivity extends AppCompatActivity {
             @Override
             protected Void doInBackground(Void... voids) {
 
+                recipes = arrayList;
+
                 //creating a task
-                if(recipes != null) {
+                if(recipes == null) {
+                    CountryRepository.getInstance(getApplicationContext()).getAppDatabase().countryDao().insert(new Country());
+                    return null;
+                }
+
                     for (int i = 0; i < recipes.size(); i++) {
                         Country recipe = new Country();
                         recipe.setCountryName(recipes.get(i).getCountryName());
@@ -195,7 +199,6 @@ public class MainActivity extends AppCompatActivity {
                         recipe.setLanguages(recipes.get(i).getLanguages());
                         CountryRepository.getInstance(getApplicationContext()).getAppDatabase().countryDao().insert(recipe);
                     }
-                }
 
 
                 return null;
@@ -212,7 +215,12 @@ public class MainActivity extends AppCompatActivity {
         st.execute();
     }
 
-    public void DeleteAll(View view) {
-        CountryRepository.getInstance(getApplicationContext()).getAppDatabase().countryDao().deleteAll();
+    public void deleteAll(View view) {
+        CountryRepository.getInstance(MainActivity.this).getAppDatabase().countryDao().deleteAll();
+        fetchfromRoom();
+    }
+
+    public void refresh(View view) {
+        fetchfromServer();
     }
 }
